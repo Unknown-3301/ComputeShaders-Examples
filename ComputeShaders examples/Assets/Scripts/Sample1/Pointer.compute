@@ -1,0 +1,57 @@
+#pragma kernel MovePoints
+
+struct Point
+{
+    float2 position;
+    float2 direction;
+    float speed;
+    float4 color;
+};
+
+RWStructuredBuffer<Point> Points : register(u0);
+
+cbuffer Info : register(b0)
+{
+    int pointsNum;
+    int width;
+    int height;
+    int randSeed;
+}
+
+// Source: www.cs.ubc.ca/~rbridson/docs/schechter-sca08-turbulence.pdf
+uint hash(uint state)
+{
+    state ^= 2747636419u;
+    state *= 2654435769u;
+    state ^= state >> 16;
+    state *= 2654435769u;
+    state ^= state >> 16;
+    state *= 2654435769u;
+    return state;
+}
+float NormalizeUINT(uint state)
+{
+    return state / 4294967295.0;
+}
+
+
+[numthreads(16,1,1)]
+void MovePoints(uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= pointsNum)
+    {
+        return;
+    }
+    
+    Point p = Points[id.x];
+    float2 newPos = p.position + p.direction * p.speed;
+    if (newPos.x < 0 || newPos.x >= width || newPos.y < 0 || newPos.y >= height)
+    {
+        newPos = float2(clamp(newPos.x, 0, width), clamp(newPos.y, 0, height));
+        
+        float randAngle = NormalizeUINT(hash(hash(p.position.x + randSeed) + p.position.y)) * 6.28318531;
+        p.direction = float2(cos(randAngle), sin(randAngle));
+    }
+    p.position = newPos;
+    Points[id.x] = p;
+}

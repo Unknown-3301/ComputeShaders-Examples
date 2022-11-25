@@ -1,0 +1,105 @@
+#pragma kernel Simulate
+
+struct Particle
+{
+    float2 Position;
+    float2 Velocity;
+    float2 Acceleration;
+    float4 Color;
+    int Type;
+};
+
+RWStructuredBuffer<Particle> Particles : register(u0);
+RWStructuredBuffer<float> ParticlesInterractions : register(u1);
+
+cbuffer Info : register(b0)
+{
+    int particlesNum;
+    float width;
+    float height;
+    
+    int dummyVar1;
+}
+
+//float2 CalculateVelocity(Particle p1, Particle p2, float g)
+//{
+//    float2 posDiff = p2.Position - p1.Position;
+//    float sqrDis = posDiff.x * posDiff.x + posDiff.y * posDiff.y;
+//    float maxDis = 80 * 80;
+    
+//    float2 vel = 0;
+//    if (sqrDis != 0 && sqrDis <= maxDis)
+//    {
+//        vel = posDiff * g / sqrDis * 0.01f;
+//    }
+    
+//    return vel;
+//}
+float2 CalculateVelocity(Particle p1, Particle p2, float g)
+{
+    float2 posDiff = p2.Position - p1.Position;
+    float Dis = sqrt(posDiff.x * posDiff.x + posDiff.y * posDiff.y);
+    float maxDis = 80;
+    
+    float2 vel = 0;
+    if (Dis != 0 && Dis <= maxDis)
+    {
+        vel = posDiff * g / Dis * 0.01f;
+    }
+    
+    return vel;
+}
+
+[numthreads(16,1,1)]
+void Simulate (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= particlesNum)
+    {
+        return;
+    }
+    
+    Particle baseP = Particles[id.x];
+    baseP.Acceleration = 0;
+    
+    for (int i = 0; i < particlesNum; i++)
+    {
+        if (i == id.x)
+        {
+            continue;
+        }
+        
+        Particle p = Particles[i];
+        float2 vel = CalculateVelocity(baseP, p, ParticlesInterractions[baseP.Type * 3 + p.Type]); //3 for red, green, and blue
+
+        baseP.Acceleration += vel;
+    }
+    
+    float maxVel = 16;
+    float2 newVel = baseP.Velocity + baseP.Acceleration;
+    if (newVel.x * newVel.x + newVel.y * newVel.y >= maxVel)
+    {
+        newVel = normalize(newVel) * 4;
+    }
+    baseP.Velocity = newVel;
+    
+    float2 pos = baseP.Position + baseP.Velocity * 0.02;
+    if (pos.x < 0 || pos.x >= width)
+    {
+        float2 flipXVel = baseP.Velocity;
+        flipXVel.x *= -1;
+        baseP.Velocity = flipXVel;
+        
+        pos.x = min(max(pos.x, 0), width);
+    }
+    if (pos.y < 0 || pos.y >= height)
+    {
+        float2 flipYVel = baseP.Velocity;
+        flipYVel.y *= -1;
+        baseP.Velocity = flipYVel;
+        
+        pos.y = min(max(pos.y, 0), height);
+    }
+    baseP.Position = pos;
+
+    Particles[id.x] = baseP;
+}

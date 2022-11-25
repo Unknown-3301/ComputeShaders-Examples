@@ -1,0 +1,57 @@
+#pragma kernel Colorize
+
+struct Point
+{
+    float2 position;
+    float2 direction;
+    float speed;
+    float4 color;
+};
+
+RWTexture2D<float4> Texture : register(u0);
+RWStructuredBuffer<Point> Points : register(u1);
+
+cbuffer Info : register(b0)
+{
+    int pointsNum;
+    int width;
+    int height;
+    
+    int dummyVar1;
+}
+
+float SqrDistance(float2 p1, float2 p2)
+{
+    return (p2.x - p1.x) * (p2.x - p1.x) + (p2.y - p1.y) * (p2.y - p1.y);
+
+}
+
+[numthreads(8,8,1)]
+void Colorize (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= width || id.y >= height)
+    {
+        return;
+    }
+    
+    Point closestPoint = Points[0];
+    float closestSqrDis = SqrDistance(id.xy, closestPoint.position);
+    for (int i = 1; i < pointsNum; i++)
+    {
+        Point p = Points[i];
+        float sqrDis = SqrDistance(id.xy, p.position);
+        if (sqrDis < closestSqrDis)
+        {
+            closestSqrDis = sqrDis;
+            closestPoint = p;
+        }
+    }
+    
+    Texture[id.xy] = closestPoint.color;
+    
+    //if you want the points to be visible
+    //if (closestSqrDis <= 100)
+    //{
+    //    Texture[id.xy] = 1;
+    //}
+}
