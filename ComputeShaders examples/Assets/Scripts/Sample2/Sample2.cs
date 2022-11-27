@@ -91,6 +91,7 @@ public class Sample2 : MonoBehaviour
 
         shader = new ComputeShaders.ComputeShader(@"Assets\Scripts\Sample2\SimulatorShader.compute", "Simulate");
         particlesBuffer = shader.CreateStructuredBuffer(particles, Particle.Size);
+        particlesBuffer.EnableCPU_Raw_ReadWrite();
         particlesInteractions = shader.CreateStructuredBuffer(interactions, sizeof(float));
         info = shader.CreateBuffer(new Sample2Info() { Particles = particles.Length, Width = width, Height = height }, Sample2Info.Size);
 

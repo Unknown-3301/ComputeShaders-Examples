@@ -34,7 +34,7 @@ public class Sample1 : MonoBehaviour
 
         pointer = new Pointer(points, width, height);
         colorize = new Colorize(width, height, pointer.Points);
-        colorize.Texture.EnableCPU_ReadWrite();
+        colorize.Texture.EnableCPU_Raw_ReadWrite();
 
         output = new Texture2D(width, height);
         converter = new CSToUnityConverter(width, height);
