@@ -29,6 +29,7 @@ public class Sample2 : MonoBehaviour
     GameObject[] particlesObject;
     float[] interactions;
 
+    CSDevice device;
     ComputeShaders.ComputeShader shader;
     CSStructuredBuffer<Particle> particlesBuffer;
     CSStructuredBuffer<float> particlesInteractions;
@@ -89,15 +90,18 @@ public class Sample2 : MonoBehaviour
         interactions = new float[9];
         SetForces();
 
-        shader = new ComputeShaders.ComputeShader(@"Assets\Scripts\Sample2\SimulatorShader.compute", "Simulate");
-        particlesBuffer = shader.CreateStructuredBuffer(particles, Particle.Size);
-        particlesBuffer.EnableCPU_Raw_ReadWrite();
-        particlesInteractions = shader.CreateStructuredBuffer(interactions, sizeof(float));
-        info = shader.CreateBuffer(new Sample2Info() { Particles = particles.Length, Width = width, Height = height }, Sample2Info.Size);
+        device = new CSDevice();
+        shader = device.CreateComputeShader(@"Assets\Scripts\Sample2\SimulatorShader.compute", "Simulate");
+        device.SetComputeShader(shader);
 
-        shader.SetRWStructuredBuffer(particlesBuffer, 0);
-        shader.SetRWStructuredBuffer(particlesInteractions, 1);
-        shader.SetBuffer(info, 0);
+        particlesBuffer = device.CreateStructuredBuffer(particles, Particle.Size);
+        particlesBuffer.EnableCPU_Raw_ReadWrite();
+        particlesInteractions = device.CreateStructuredBuffer(interactions, sizeof(float));
+        info = device.CreateBuffer(new Sample2Info() { Particles = particles.Length, Width = width, Height = height }, Sample2Info.Size);
+
+        device.SetRWStructuredBuffer(particlesBuffer, 0);
+        device.SetRWStructuredBuffer(particlesInteractions, 1);
+        device.SetBuffer(info, 0);
     }
 
     void SetForces()
@@ -118,12 +122,21 @@ public class Sample2 : MonoBehaviour
         SetForces();
         particlesInteractions.SetData(interactions);
 
-        shader.Dispatch(Mathf.CeilToInt(particles.Length / 16f), 1, 1);
+        device.Dispatch(Mathf.CeilToInt(particles.Length / 16f), 1, 1);
 
         particlesBuffer.GetData(ref particles);
         for (int i = 0; i < particlesObject.Length; i++)
         {
             particlesObject[i].transform.position = particles[i].Position;
         }
+    }
+
+    private void OnDestroy()
+    {
+        particlesBuffer.Dispose();
+        particlesInteractions.Dispose();
+        info.Dispose();
+        shader.Dispose();
+        device.Dispose();
     }
 }

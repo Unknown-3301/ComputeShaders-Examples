@@ -9,6 +9,7 @@ public class Sample1 : MonoBehaviour
     int width, height;
     Texture2D output;
 
+    ComputeShaders.CSDevice device;
     Colorize colorize;
     Pointer pointer;
     CSToUnityConverter converter;
@@ -32,8 +33,9 @@ public class Sample1 : MonoBehaviour
             };
         }
 
-        pointer = new Pointer(points, width, height);
-        colorize = new Colorize(width, height, pointer.Points);
+        device = new ComputeShaders.CSDevice();
+        pointer = new Pointer(points, device, width, height);
+        colorize = new Colorize(device, width, height, pointsNum);
         colorize.Texture.EnableCPU_Raw_ReadWrite();
 
         output = new Texture2D(width, height);
@@ -42,8 +44,7 @@ public class Sample1 : MonoBehaviour
 
     private void Update()
     {
-        pointer.Run(Time.frameCount);
-        colorize.Run();
+        colorize.Run(pointer.Run(Time.frameCount));
 
         colorize.Texture.ReadFromRawData(box =>
         {
@@ -55,5 +56,12 @@ public class Sample1 : MonoBehaviour
     private void OnRenderImage(RenderTexture source, RenderTexture destination)
     {
         Graphics.Blit(output, destination);
+    }
+
+    private void OnDestroy()
+    {
+        pointer.Dispose();
+        colorize.Dispose();
+        device.Dispose();
     }
 }
